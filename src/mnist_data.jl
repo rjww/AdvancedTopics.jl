@@ -1,21 +1,21 @@
 const filtering_labels = [0, 1]
 
-function training_data()
+function mnist_training_data()
     X, T = MLDatasets.MNIST.traindata()
     reshape_data(filter_data(X, T)...)
 end
 
-function training_data(n_samples::Int)
-    random_sample(n_samples, training_data()...)
+function mnist_training_data(n_samples::Int)
+    random_sample(n_samples, mnist_training_data()...)
 end
 
-function testing_data()
+function mnist_testing_data()
     X, T = MLDatasets.MNIST.testdata()
     reshape_data(filter_data(X, T)...)
 end
 
-function testing_data(n_samples::Int)
-    random_sample(n_samples, testing_data()...)
+function mnist_testing_data(n_samples::Int)
+    random_sample(n_samples, mnist_testing_data()...)
 end
 
 function filter_data(samples::T1,
