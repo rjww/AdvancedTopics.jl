@@ -37,7 +37,7 @@ function reshape_samples(samples::T) where {T <: AbstractArray}
 end
 
 function reshape_targets(targets::T) where {T <: AbstractVector}
-    [x == 0 ? -1 : 1 for x ∈ targets]
+    [x == 1 ? 1 : -1 for x ∈ targets]
 end
 
 function random_sample(n_samples::Int,
