@@ -16,6 +16,8 @@ struct DataPassingSieve{T <: Number} <: Sieve
     layers::Vector{SieveLayer{T}}
     output_weights::Matrix{T}
     consensus_threshold::Real
+    training_samples_per_layer::Vector{Int}
+    depth_per_sample::Vector{Int}
 
     function DataPassingSieve{T₁}(samples::T₂,
                                   targets::T₃,
@@ -33,6 +35,8 @@ struct DataPassingSieve{T <: Number} <: Sieve
         N = last(size(X))
         H = zeros(T₁, L * max_layers, N)
         layers = Vector{SieveLayer{T₁}}()
+        training_samples_per_layer = Vector{Int}()
+        depth_per_sample = zeros(Int, N)
 
         X₀ = X
         t₀ = t
@@ -44,6 +48,8 @@ struct DataPassingSieve{T <: Number} <: Sieve
                 break
             end
 
+            push!(training_samples_per_layer, length(active_samples))
+            depth_per_sample[indices] .= depth
             boundary_offset = depth == 1 ? initial_boundary_offset : subsequent_boundary_offset
 
             i₀ = (depth-1) * L + 1
@@ -77,7 +83,7 @@ struct DataPassingSieve{T <: Number} <: Sieve
 
         B = (T * H') * LinearAlgebra.pinv(H * H')
 
-        new{T₁}(L, layers, B, consensus_threshold)
+        new{T₁}(L, layers, B, consensus_threshold, training_samples_per_layer, depth_per_sample)
     end
 end
 
@@ -135,6 +141,8 @@ struct ProjectionPassingSieve{T <: Number} <: Sieve
     layers::Vector{SieveLayer{T}}
     output_weights::Matrix{T}
     consensus_threshold::Real
+    training_samples_per_layer::Vector{Int}
+    depth_per_sample::Vector{Int}
 
     function ProjectionPassingSieve{T₁}(samples::T₂,
                                         targets::T₃,
@@ -163,6 +171,8 @@ struct ProjectionPassingSieve{T <: Number} <: Sieve
                 break
             end
 
+            push!(training_samples_per_layer, length(active_samples))
+            depth_per_sample[indices] .= depth
             boundary_offset = depth == 1 ? initial_boundary_offset : subsequent_boundary_offset
 
             i₀ = (depth-1) * L + 1
@@ -196,7 +206,7 @@ struct ProjectionPassingSieve{T <: Number} <: Sieve
 
         B = (T * H') * LinearAlgebra.pinv(H * H')
 
-        new{T₁}(L, layers, B, consensus_threshold)
+        new{T₁}(L, layers, B, consensus_threshold, training_samples_per_layer, depth_per_sample)
     end
 end
 
