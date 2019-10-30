@@ -20,6 +20,7 @@ struct DataPassingSieve{T <: Number} <: Sieve
     function DataPassingSieve{T₁}(samples::T₂,
                                   targets::T₃,
                                   n_neurons::Int;
+                                  boundary_offset::Int = 1,
                                   consensus_threshold::Real = 0.9,
                                   max_layers::Int = 3,
                                   min_split::Int = 2) where {T₁ <: Number,
@@ -48,7 +49,7 @@ struct DataPassingSieve{T <: Number} <: Sieve
             H₀ = @view H[i₀:i₁,indices]
             D, N₀ = size(X₀)
 
-            W, fs = train_kde_comparators(T₁, X₀, t₀, L)
+            W, fs = train_kde_comparators(T₁, X₀, t₀, L, boundary_offset = boundary_offset)
             H₀ .= project(X₀, W, fs)
             push!(layers, SieveLayer(W, fs))
 
@@ -135,6 +136,7 @@ struct ProjectionPassingSieve{T <: Number} <: Sieve
     function ProjectionPassingSieve{T₁}(samples::T₂,
                                         targets::T₃,
                                         n_neurons::Int;
+                                        boundary_offset::Int = 1,
                                         consensus_threshold::Real = 0.9,
                                         max_layers::Int = 3,
                                         min_split::Int = 2) where {T₁ <: Number,
@@ -163,7 +165,7 @@ struct ProjectionPassingSieve{T <: Number} <: Sieve
             H₀ = @view H[i₀:i₁,indices]
             D, N₀ = size(X₀)
 
-            W, fs = train_kde_comparators(T₁, X₀, t₀, L)
+            W, fs = train_kde_comparators(T₁, X₀, t₀, L, boundary_offset = boundary_offset)
             H₀ .= project(X₀, W, fs)
             push!(layers, SieveLayer(W, fs))
 
