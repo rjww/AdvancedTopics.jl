@@ -25,9 +25,9 @@ struct ELM{T₁ <: Number, T₂ <: ActivationFunction}
         H = H * Ψ
         T = reshape(t, 1, :) * Ψ
 
-        β = (T * H') * LinearAlgebra.pinv(H * H')
+        B = (T * H') * LinearAlgebra.pinv(H * H')
 
-        new{T₁,eltype(fs)}(W, β, fs)
+        new{T₁,eltype(fs)}(W, B, fs)
     end
 
     function ELM{T₁}(samples::T₂,
@@ -68,9 +68,9 @@ struct ELM{T₁ <: Number, T₂ <: ActivationFunction}
         H = H * Ψ
         T = reshape(t, 1, :) * Ψ
 
-        β = (T * H') * LinearAlgebra.pinv(H * H')
+        B = (T * H') * LinearAlgebra.pinv(H * H')
 
-        new{T₁,eltype(fs)}(W, β, fs)
+        new{T₁,eltype(fs)}(W, B, fs)
     end
 end
 
@@ -79,12 +79,12 @@ function predict(elm::T₁,
                                      T₂ <: AbstractMatrix}
     X = samples
     W = elm.input_weights
-    β = elm.output_weights
+    B = elm.output_weights
     fs = elm.activation_functions
     N = last(size(X))
     H = project(X, W, fs)
     H = [H; ones(eltype(H), 1, N)]
-    y = vec(β * H)
+    y = vec(B * H)
 
 end
 

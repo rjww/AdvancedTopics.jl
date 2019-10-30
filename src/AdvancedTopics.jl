@@ -16,7 +16,7 @@ include("mnist_data.jl")
 include("synthetic_data.jl")
 include("error.jl")
 
-export ELM, Sieve, predict,
+export ELM, Sieve, DataPassingSieve, ProjectionPassingSieve, predict,
        Cube, Linear, ReLU, Sigmoid, Square, Tanh,
        KDEComparator, train_kde_comparators,
        calculate_error,

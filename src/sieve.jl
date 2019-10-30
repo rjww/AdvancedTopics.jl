@@ -9,20 +9,22 @@ struct SieveLayer{T₁ <: Number, T₂ <: KDEComparator}
     end
 end
 
-struct Sieve{T <: Number}
+abstract type Sieve end
+
+struct DataPassingSieve{T <: Number} <: Sieve
     n_neurons::Int
     layers::Vector{SieveLayer{T}}
     output_weights::Matrix{T}
     consensus_threshold::Real
 
-    function Sieve{T₁}(samples::T₂,
-                       targets::T₃,
-                       n_neurons::Int;
-                       consensus_threshold::Real = 0.9,
-                       max_layers::Int = 3,
-                       min_split::Int = 2) where {T₁ <: Number,
-                                                  T₂ <: AbstractMatrix,
-                                                  T₃ <: AbstractVector}
+    function DataPassingSieve{T₁}(samples::T₂,
+                                  targets::T₃,
+                                  n_neurons::Int;
+                                  consensus_threshold::Real = 0.9,
+                                  max_layers::Int = 3,
+                                  min_split::Int = 2) where {T₁ <: Number,
+                                                             T₂ <: AbstractMatrix,
+                                                             T₃ <: AbstractVector}
         X = samples
         t = targets
         L = n_neurons
@@ -61,7 +63,6 @@ struct Sieve{T <: Number}
 
             X₀ = @view X[:,indices]
             t₀ = @view t[indices]
-            # X₀ = @view H[i₀:i₁,indices]
         end
 
         H = [H; ones(eltype(H), 1, N)]
@@ -70,16 +71,16 @@ struct Sieve{T <: Number}
         H = H * Ψ
         T = reshape(t, 1, :) * Ψ
 
-        β = (T * H') * LinearAlgebra.pinv(H * H')
+        B = (T * H') * LinearAlgebra.pinv(H * H')
 
-        new{T₁}(L, layers, β, consensus_threshold)
+        new{T₁}(L, layers, B, consensus_threshold)
     end
 end
 
 function predict(sieve::T₁,
-                 samples::T₂) where {T₁ <: Sieve,
+                 samples::T₂) where {T₁ <: DataPassingSieve,
                                      T₂ <: AbstractMatrix}
-    param(::Sieve{T}) where {T} = T
+    param(::DataPassingSieve{T}) where {T} = T
 
     X = samples
     L = sieve.n_neurons
@@ -111,16 +112,130 @@ function predict(sieve::T₁,
         indices = get_indices(active_samples, N)
 
         X₀ = @view X[:,indices]
-        # X₀ = @view H[i₀:i₁,indices]
     end
 
     H = [H; ones(eltype(H), 1, N)]
-    β = sieve.output_weights
-    y = vec(β * H)
+    B = sieve.output_weights
+    y = vec(B * H)
 end
 
 function predict(sieve::T₁,
-                 sample::T₂) where {T₁ <: Sieve,
+                 sample::T₂) where {T₁ <: DataPassingSieve,
+                                    T₂ <: AbstractVector}
+    y = predict(sieve, reshape(sample, :, 1))
+    first(y)
+end
+
+struct ProjectionPassingSieve{T <: Number} <: Sieve
+    n_neurons::Int
+    layers::Vector{SieveLayer{T}}
+    output_weights::Matrix{T}
+    consensus_threshold::Real
+
+    function ProjectionPassingSieve{T₁}(samples::T₂,
+                                        targets::T₃,
+                                        n_neurons::Int;
+                                        consensus_threshold::Real = 0.9,
+                                        max_layers::Int = 3,
+                                        min_split::Int = 2) where {T₁ <: Number,
+                                                                   T₂ <: AbstractMatrix,
+                                                                   T₃ <: AbstractVector}
+        X = samples
+        t = targets
+        L = n_neurons
+        N = last(size(X))
+        H = zeros(T₁, L * max_layers, N)
+        layers = Vector{SieveLayer{T₁}}()
+
+        X₀ = X
+        t₀ = t
+        active_samples = Set{Int}(1:N)
+        indices = get_indices(active_samples, N)
+
+        for depth in 1:max_layers
+            if length(active_samples) < min_split || all(t .== 1) || all(t .!= 1)
+                break
+            end
+
+            i₀ = (depth-1) * L + 1
+            i₁ = i₀ + L - 1
+
+            H₀ = @view H[i₀:i₁,indices]
+            D, N₀ = size(X₀)
+
+            W, fs = train_kde_comparators(T₁, X₀, t₀, L)
+            H₀ .= project(X₀, W, fs)
+            push!(layers, SieveLayer(W, fs))
+
+            to_remove = Set{Int}()
+            for n in active_samples
+                if consensus(H[i₀:i₁,n], consensus_threshold)
+                    push!(to_remove, n)
+                end
+            end
+            setdiff!(active_samples, to_remove)
+            indices = get_indices(active_samples, N)
+
+            X₀ = @view H[i₀:i₁,indices]
+            t₀ = @view t[indices]
+        end
+
+        H = [H; ones(eltype(H), 1, N)]
+
+        Ψ = calculate_sample_weights(t)
+        H = H * Ψ
+        T = reshape(t, 1, :) * Ψ
+
+        B = (T * H') * LinearAlgebra.pinv(H * H')
+
+        new{T₁}(L, layers, B, consensus_threshold)
+    end
+end
+
+function predict(sieve::T₁,
+                 samples::T₂) where {T₁ <: ProjectionPassingSieve,
+                                     T₂ <: AbstractMatrix}
+    param(::ProjectionPassingSieve{T}) where {T} = T
+
+    X = samples
+    L = sieve.n_neurons
+    N = last(size(X))
+    H = zeros(param(sieve), L * length(sieve.layers), N)
+
+    X₀ = X
+    active_samples = Set{Int}(1:N)
+    indices = get_indices(active_samples, N)
+
+    for (depth, layer) in enumerate(sieve.layers)
+        i₀ = (depth-1) * L + 1
+        i₁ = i₀ + L - 1
+
+        H₀ = @view H[i₀:i₁,indices]
+        D, N₀ = size(X₀)
+
+        W = layer.input_weights
+        fs = layer.comparators
+        H₀ .= project(X₀, W, fs)
+
+        to_remove = Set{Int}()
+        for n in active_samples
+            if consensus(H[i₀:i₁,n], sieve.consensus_threshold)
+                push!(to_remove, n)
+            end
+        end
+        setdiff!(active_samples, to_remove)
+        indices = get_indices(active_samples, N)
+
+        X₀ = @view H[i₀:i₁,indices]
+    end
+
+    H = [H; ones(eltype(H), 1, N)]
+    B = sieve.output_weights
+    y = vec(B * H)
+end
+
+function predict(sieve::T₁,
+                 sample::T₂) where {T₁ <: ProjectionPassingSieve,
                                     T₂ <: AbstractVector}
     y = predict(sieve, reshape(sample, :, 1))
     first(y)
