@@ -6,72 +6,100 @@ struct ELM{T₁ <: Number, T₂ <: ActivationFunction}
     function ELM{T₁}(samples::T₂,
                      targets::T₃,
                      input_weights::T₄,
-                     activation_function::T₅) where {T₁ <: Number,
-                                                     T₂ <: AbstractMatrix,
-                                                     T₃ <: AbstractVector,
-                                                     T₄ <: AbstractMatrix,
-                                                     T₅ <: NaiveActivationFunction}
+                     activation_functions::Vector{T₅};
+                     batch_size::Int = 1000) where {T₁ <: Number,
+                                                    T₂ <: AbstractMatrix,
+                                                    T₃ <: AbstractVector,
+                                                    T₄ <: AbstractMatrix,
+                                                    T₅ <: ActivationFunction}
         X = samples
         t = targets
         W = input_weights
         L = first(size(W))
-        fs = [activation_function for l in 1:L]
-        D, N = size(X)
-
-        H = project(X, W, fs)
-        H = [H; ones(eltype(H), 1, N)]
-
-        Ψ = calculate_sample_weights(t)
-        H = H * Ψ
-        T = reshape(t, 1, :) * Ψ
-
-        B = (T * H') * LinearAlgebra.pinv(H * H')
-
+        fs = activation_functions
+        B = train_output_weights(T₁, X, t, W, fs, batch_size)
         new{T₁,eltype(fs)}(W, B, fs)
     end
 
     function ELM{T₁}(samples::T₂,
                      targets::T₃,
                      n_neurons::Int,
-                     activation_function::T₄) where {T₁ <: Number,
-                                                     T₂ <: AbstractMatrix,
-                                                     T₃ <: AbstractVector,
-                                                     T₄ <: NaiveActivationFunction}
+                     activation_function::T₄;
+                     batch_size::Int = 1000) where {T₁ <: Number,
+                                                    T₂ <: AbstractMatrix,
+                                                    T₃ <: AbstractVector,
+                                                    T₄ <: NaiveActivationFunction}
         X = samples
         t = targets
         L = n_neurons
         f = activation_function
         D = first(size(X))
         W = gaussian_projection_matrix(T₁, L, D)
-        ELM{T₁}(X, t, W, f)
+        ELM{T₁}(X, t, W, f, batch_size = batch_size)
+    end
+end
+
+function train_output_weights(::Type{T₁},
+                              samples::T₂,
+                              targets::T₃,
+                              input_weights::T₄,
+                              activation_functions::Vector{T₅},
+                              batch_size::Int) where {T₁ <: Number,
+                                                      T₂ <: AbstractMatrix,
+                                                      T₃ <: AbstractVector,
+                                                      T₄ <: AbstractMatrix,
+                                                      T₅ <: ActivationFunction}
+    X = samples
+    t = targets
+    ψ = calculate_sample_weights(t)
+    W = input_weights
+    fs = activation_functions
+    L = length(fs)
+    D, N = size(X)
+
+    HH = zeros(T₁, L + 1, L + 1)
+    TH = zeros(T₁, 1, L + 1)
+
+    for batch in partition_range(1:N, batch_size)
+        X₀ = @view X[:,batch]
+        t₀ = @view t[batch]
+        ψ₀ = @view ψ[batch]
+        train_on_batch!(HH, TH, X₀, t₀, ψ₀, W, fs)
     end
 
-    function ELM{T₁}(samples::T₂,
-                     targets::T₃,
-                     input_weights::T₄,
-                     activation_functions::Vector{T₅}) where {T₁ <: Number,
-                                                              T₂ <: AbstractMatrix,
-                                                              T₃ <: AbstractVector,
-                                                              T₄ <: AbstractMatrix,
-                                                              T₅ <: TrainedActivationFunction}
-        X = samples
-        t = targets
-        W = input_weights
-        fs = activation_functions
-        L = length(fs)
-        D, N = size(X)
+    output_weights = TH * LinearAlgebra.pinv(HH)
+end
 
-        H = project(X, W, fs)
-        H = [H; ones(eltype(H), 1, N)]
+function train_on_batch!(HH::T₁,
+                         TH::T₂,
+                         samples::T₃,
+                         targets::T₄,
+                         sample_weights::T₅,
+                         input_weights::T₆,
+                         activation_functions::Vector{T₇}) where {T₁ <: AbstractMatrix,
+                                                                  T₂ <: AbstractMatrix,
+                                                                  T₃ <: AbstractMatrix,
+                                                                  T₄ <: AbstractVector,
+                                                                  T₅ <: AbstractVector,
+                                                                  T₆ <: AbstractMatrix,
+                                                                  T₇ <: ActivationFunction}
+    X = samples
+    T = reshape(targets, 1, :)
+    Ψ = LinearAlgebra.Diagonal(sample_weights)
+    W = input_weights
+    fs = activation_functions
+    N = last(size(X))
 
-        Ψ = calculate_sample_weights(t)
-        H = H * Ψ
-        T = reshape(t, 1, :) * Ψ
+    H = project(X, W, fs)
+    H = [H; ones(eltype(H), 1, N)]
 
-        B = (T * H') * LinearAlgebra.pinv(H * H')
+    H = H * Ψ
+    T = T * Ψ
 
-        new{T₁,eltype(fs)}(W, B, fs)
-    end
+    HH .+= (H * H')
+    TH .+= (T * H')
+
+    HH, TH
 end
 
 function predict(elm::T₁,
@@ -82,10 +110,11 @@ function predict(elm::T₁,
     B = elm.output_weights
     fs = elm.activation_functions
     N = last(size(X))
+
     H = project(X, W, fs)
     H = [H; ones(eltype(H), 1, N)]
-    y = vec(B * H)
 
+    y = vec(B * H)
 end
 
 function predict(elm::T₁,
