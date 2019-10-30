@@ -11,7 +11,7 @@ function perform_tests(samples::T₁,
       L = n_neurons
       max_layers = 3
 
-      W, fs = train_kde_comparators(Float64, X, t, max_layers * L)
+      W, fs = train_kde_comparators(Float64, X, t, max_layers * L, boundary_offset = 100)
 
       elm_sig = ELM{Float64}(X, t, W, Sigmoid())
       elm_kde = ELM{Float64}(X, t, W, fs)

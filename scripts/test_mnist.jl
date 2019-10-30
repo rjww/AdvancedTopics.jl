@@ -18,7 +18,7 @@ function perform_tests(training_samples::T₁,
     L = n_neurons
     max_layers = 3
 
-    W, fs = train_kde_comparators(Float64, X₀, t₀, max_layers * L)
+    W, fs = train_kde_comparators(Float64, X₀, t₀, max_layers * L, boundary_offset = 100)
 
     elm_sig = ELM{Float64}(X₀, t₀, W, Sigmoid())
     elm_kde = ELM{Float64}(X₀, t₀, W, fs)
@@ -48,7 +48,7 @@ end
 
 X₀, t₀ = mnist_training_data()
 X₁, t₁ = mnist_testing_data()
-n_neurons = 50
+n_neurons = 5
 
 (hist_sig, error_sig,
  hist_kde, error_kde,

@@ -27,9 +27,10 @@ struct KDEComparator{T₁ <: KernelDensity.UnivariateKDE,
 
     function KDEComparator(samples::T₁,
                            targets::T₂,
-                           weights::T₃) where {T₁ <: AbstractMatrix,
-                                               T₂ <: AbstractVector,
-                                               T₃ <: AbstractVector}
+                           weights::T₃;
+                           boundary_offset::Int = 1) where {T₁ <: AbstractMatrix,
+                                                            T₂ <: AbstractVector,
+                                                            T₃ <: AbstractVector}
         X = samples
         t = targets
         w = weights
@@ -38,8 +39,8 @@ struct KDEComparator{T₁ <: KernelDensity.UnivariateKDE,
         h₀ = h[t .!= 1]
         h₁ = h[t .== 1]
 
-        boundary = (min(minimum(h₀), minimum(h₁)) - 1,
-                    max(maximum(h₀), maximum(h₁)) + 1)
+        boundary = (min(minimum(h₀), minimum(h₁)) - boundary_offset,
+                    max(maximum(h₀), maximum(h₁)) + boundary_offset)
 
         kde₀ = KernelDensity.kde_lscv(h₀, npoints = 100, boundary = boundary)
         kde₁ = KernelDensity.kde_lscv(h₁, npoints = 100, boundary = boundary)
@@ -59,14 +60,15 @@ end
 function train_kde_comparators(::Type{T₁},
                                samples::T₂,
                                targets::T₃,
-                               n_neurons::Int) where {T₁ <: Number,
-                                                      T₂ <: AbstractMatrix,
-                                                      T₃ <: AbstractVector}
+                               n_neurons::Int;
+                               boundary_offset::Int = 1) where {T₁ <: Number,
+                                                                T₂ <: AbstractMatrix,
+                                                                T₃ <: AbstractVector}
     X = samples
     t = targets
     L = n_neurons
     D = first(size(X))
     W = gaussian_projection_matrix(T₁, L, D)
-    fs = [KDEComparator(X, t, W[l,:]) for l in 1:L]
+    fs = [KDEComparator(X, t, W[l,:], boundary_offset = boundary_offset) for l in 1:L]
     W, fs
 end
