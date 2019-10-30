@@ -20,7 +20,8 @@ struct DataPassingSieve{T <: Number} <: Sieve
     function DataPassingSieve{T₁}(samples::T₂,
                                   targets::T₃,
                                   n_neurons::Int;
-                                  boundary_offset::Int = 1,
+                                  initial_boundary_offset::Int = 1,
+                                  subsequent_boundary_offset::Int = 1,
                                   consensus_threshold::Real = 0.9,
                                   max_layers::Int = 3,
                                   min_split::Int = 2) where {T₁ <: Number,
@@ -42,6 +43,8 @@ struct DataPassingSieve{T <: Number} <: Sieve
             if length(active_samples) < min_split || all(t .== 1) || all(t .!= 1)
                 break
             end
+
+            boundary_offset = depth == 1 ? initial_boundary_offset : subsequent_boundary_offset
 
             i₀ = (depth-1) * L + 1
             i₁ = i₀ + L - 1
@@ -136,7 +139,8 @@ struct ProjectionPassingSieve{T <: Number} <: Sieve
     function ProjectionPassingSieve{T₁}(samples::T₂,
                                         targets::T₃,
                                         n_neurons::Int;
-                                        boundary_offset::Int = 1,
+                                        initial_boundary_offset::Int = 1,
+                                        subsequent_boundary_offset::Int = 1,
                                         consensus_threshold::Real = 0.9,
                                         max_layers::Int = 3,
                                         min_split::Int = 2) where {T₁ <: Number,
@@ -158,6 +162,8 @@ struct ProjectionPassingSieve{T <: Number} <: Sieve
             if length(active_samples) < min_split || all(t .== 1) || all(t .!= 1)
                 break
             end
+
+            boundary_offset = depth == 1 ? initial_boundary_offset : subsequent_boundary_offset
 
             i₀ = (depth-1) * L + 1
             i₁ = i₀ + L - 1
