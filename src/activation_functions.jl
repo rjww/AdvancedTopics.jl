@@ -24,6 +24,8 @@ struct KDEComparator{T₁ <: KernelDensity.UnivariateKDE,
                      T₂ <: KernelDensity.UnivariateKDE} <: TrainedActivationFunction
     pdf₁::KernelDensity.InterpKDE{T₁}
     pdf₂::KernelDensity.InterpKDE{T₂}
+    minval::Float64
+    maxval::Float64
 
     function KDEComparator(samples::T₁,
                            targets::T₂,
@@ -35,26 +37,32 @@ struct KDEComparator{T₁ <: KernelDensity.UnivariateKDE,
         t = targets
         w = weights
 
+        # Map the projections to the interval [-1 1].
         h = vec(w' * X)
+        minval = minimum(h)
+        maxval = maximum(h)
+        map!(x -> linear_stretch(x, minval, maxval, -1, 1), h, h)
+
         h₀ = h[t .!= 1]
         h₁ = h[t .== 1]
 
         boundary = (min(minimum(h₀), minimum(h₁)) - boundary_offset,
                     max(maximum(h₀), maximum(h₁)) + boundary_offset)
 
-        kde₀ = KernelDensity.kde_lscv(h₀, npoints = 100, boundary = boundary)
-        kde₁ = KernelDensity.kde_lscv(h₁, npoints = 100, boundary = boundary)
+        kde₀ = KernelDensity.kde_lscv(h₀, npoints = 1000, boundary = boundary)
+        kde₁ = KernelDensity.kde_lscv(h₁, npoints = 1000, boundary = boundary)
 
         pdf₀ = KernelDensity.InterpKDE(kde₀)
         pdf₁ = KernelDensity.InterpKDE(kde₁)
 
         param(::KernelDensity.InterpKDE{T}) where {T} = T
-        new{param(pdf₀),param(pdf₁)}(pdf₀, pdf₁)
+        new{param(pdf₀),param(pdf₁)}(pdf₀, pdf₁, minval, maxval)
     end
 end
 
 function (c::KDEComparator)(x::T) where {T <: Number}
-    Distributions.pdf(c.pdf₁, x) - Distributions.pdf(c.pdf₂, x)
+    x′ = linear_stretch(x, c.minval, c.maxval, -1, 1)
+    -(Distributions.pdf(c.pdf₁, x′) - Distributions.pdf(c.pdf₂, x′))
 end
 
 function train_kde_comparators(::Type{T₁},
@@ -71,4 +79,9 @@ function train_kde_comparators(::Type{T₁},
     W = gaussian_projection_matrix(T₁, L, D)
     fs = [KDEComparator(X, t, W[l,:], boundary_offset = boundary_offset) for l in 1:L]
     W, fs
+end
+
+# Map values in the range [A,B] to the range to [a,b]
+function linear_stretch(x, A, B, a, b)
+    return (x-A) * ((b-a)/(B-A)) + a
 end

@@ -27,6 +27,7 @@ function project(samples::T₁,
     for l in 1:L
         H[l,:] .= fs[l].(H[l,:])
     end
-    
+    # What is the scale of these projections?
+    #display(sort(vec(H)))
     H
 end

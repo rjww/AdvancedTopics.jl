@@ -40,7 +40,15 @@ struct DataPassingSieve{T <: Number} <: Sieve
         indices = get_indices(active_samples, N)
 
         for depth in 1:max_layers
-            if length(active_samples) < min_split || all(t .== 1) || all(t .!= 1)
+            @show depth, length(active_samples)
+            if length(active_samples) < min_split || all(t₀ .== 1) || all(t₀ .!= 1)
+                 @warn "Unable to reach maximum layers"
+                 #@show length(t)
+                 #@show length(active_samples), min_split
+                 #@show length(active_samples) < min_split
+                 #@show all(t .== 1)
+                 #@show all(t .!= 1)
+                 #H = H[1:(L * depth), :]
                 break
             end
 
@@ -54,11 +62,19 @@ struct DataPassingSieve{T <: Number} <: Sieve
 
             W, fs = train_kde_comparators(T₁, X₀, t₀, L, boundary_offset = boundary_offset)
             H₀ .= project(X₀, W, fs)
+
+            display(H₀)
+            h₀ = H₀[:, t₀ .!= 1]
+            h₁ = H₀[:, t₀ .== 1]
+            fig = Plots.plot(h₀[1,:], h₀[2,:], seriestype = :scatter, color = :green, legend = false)
+            Plots.plot!(h₁[1,:], h₁[2,:], seriestype = :scatter, color = :red, legend = false)
+            display(fig)
+
             push!(layers, SieveLayer(W, fs))
 
             to_remove = Set{Int}()
             for n in active_samples
-                if consensus(H[i₀:i₁,n], consensus_threshold)
+                if consensus(H[i₀:i₁,n], t₀[n], consensus_threshold)
                     push!(to_remove, n)
                 end
             end
@@ -71,7 +87,10 @@ struct DataPassingSieve{T <: Number} <: Sieve
 
         H = [H; ones(eltype(H), 1, N)]
 
-        Ψ = calculate_sample_weights(t)
+
+
+        #Ψ = calculate_sample_weights(t)
+        Ψ = LinearAlgebra.Diagonal(calculate_sample_weights(t))
         H = H * Ψ
         T = reshape(t, 1, :) * Ψ
 
@@ -159,7 +178,15 @@ struct ProjectionPassingSieve{T <: Number} <: Sieve
         indices = get_indices(active_samples, N)
 
         for depth in 1:max_layers
-            if length(active_samples) < min_split || all(t .== 1) || all(t .!= 1)
+            @show depth
+            if length(active_samples) < min_split || all(t₀ .== 1) || all(t₀ .!= 1)
+                @warn "Unable to reach maximum layers"
+                #@show length(t)
+                #@show length(active_samples), min_split
+                #@show length(active_samples) < min_split
+                @show all(t₀ .== 1)
+                @show all(t₀ .!= 1)
+                #H = H[1:(L * depth), :]
                 break
             end
 
@@ -174,6 +201,13 @@ struct ProjectionPassingSieve{T <: Number} <: Sieve
             W, fs = train_kde_comparators(T₁, X₀, t₀, L, boundary_offset = boundary_offset)
             H₀ .= project(X₀, W, fs)
             push!(layers, SieveLayer(W, fs))
+
+            # display(H₀)
+            # h₀ = H₀[:, t₀ .!= 1]
+            # h₁ = H₀[:, t₀ .== 1]
+            # fig = Plots.plot(h₀[1,:], h₀[2,:], seriestype = :scatter, color = :green, legend = false)
+            # Plots.plot!(h₁[1,:], h₁[2,:], seriestype = :scatter, color = :red, legend = false)
+            # display(fig)
 
             to_remove = Set{Int}()
             for n in active_samples
@@ -190,7 +224,11 @@ struct ProjectionPassingSieve{T <: Number} <: Sieve
 
         H = [H; ones(eltype(H), 1, N)]
 
-        Ψ = calculate_sample_weights(t)
+        display(H)
+
+        #Ψ = calculate_sample_weights(t)
+        Ψ = LinearAlgebra.Diagonal(calculate_sample_weights(t))
+
         H = H * Ψ
         T = reshape(t, 1, :) * Ψ
 
@@ -256,7 +294,20 @@ function consensus(samples::T₁,
     f(x) = x == 0 || x == 1
     g(x) = x == 0 || x == -1
 
-    all(f.(y)) || all(g.(y))
+    vote₁ = sum(f.(y))
+    vote₂ = sum(g.(y))
+    proportion₁ = vote₁ / length(samples)
+    proportion₂ = vote₂ / length(samples)
+    proportion₁ > th || proportion₂ > th
+    #all(f.(y)) || all(g.(y))
+end
+
+function consensus(samples::T₁, target::Real,
+                   consensus_threshold::Real) where {T₁ <: AbstractVector}
+    y = (sign.(samples) .== target)
+    th = consensus_threshold
+    proportion = sum(y) / length(samples)
+    proportion >= th
 end
 
 function get_indices(active_samples::Set{Int}, N::Int)

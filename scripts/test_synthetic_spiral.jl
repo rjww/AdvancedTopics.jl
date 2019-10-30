@@ -9,14 +9,20 @@ function perform_tests(samples::T₁,
       X = samples
       t = targets
       L = n_neurons
-      max_layers = 3
+      max_layers = 2
 
-      W, fs = train_kde_comparators(Float64, X, t, max_layers * L, boundary_offset = 100)
+      W, fs = train_kde_comparators(Float64, X, t, max_layers * L, boundary_offset = 1000)
 
       elm_sig = ELM{Float64}(X, t, W, Sigmoid())
       elm_kde = ELM{Float64}(X, t, W, fs)
-      sieve_d = DataPassingSieve{Float64}(X, t, L, max_layers = max_layers)
-      sieve_p = ProjectionPassingSieve{Float64}(X, t, L, max_layers = max_layers)
+      sieve_d = DataPassingSieve{Float64}(X, t, L, max_layers = max_layers, consensus_threshold = 1,  initial_boundary_offset = 1, subsequent_boundary_offset = 1)
+      sieve_p = sieve_d
+      #@show "ProjectionPassingSieve"
+      #display("")
+      #sieve_p = ProjectionPassingSieve{Float64}(X, t, L, initial_boundary_offset = 1, subsequent_boundary_offset = 1,  max_layers = max_layers)
+      #sieve_d = sieve_p
+
+     # pause(1)
 
       y_sig = predict(elm_sig, X)
       y_kde = predict(elm_kde, X)
@@ -45,9 +51,14 @@ start = 200.0
 σ = 1.2
 
 X, t = synthetic_spiral_data(N, degrees, start, σ)
-n_neurons = 5
+n_neurons = 2
 
 (plt_sig, error_sig,
  plt_kde, error_kde,
  plt_sieve_d, error_sieve_d,
  plt_sieve_p, error_sieve_p) = perform_tests(X, t, n_neurons)
+
+
+# plt_sig
+# plt_kde
+plt_sieve_p
