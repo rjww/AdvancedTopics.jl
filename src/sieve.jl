@@ -77,7 +77,7 @@ struct DataPassingSieve{T <: Number} <: Sieve
 
         H = [H; ones(eltype(H), 1, N)]
 
-        Ψ = calculate_sample_weights(t)
+        Ψ = LinearAlgebra.Diagonal(calculate_sample_weights(t))
         H = H * Ψ
         T = reshape(t, 1, :) * Ψ
 
@@ -200,7 +200,7 @@ struct ProjectionPassingSieve{T <: Number} <: Sieve
 
         H = [H; ones(eltype(H), 1, N)]
 
-        Ψ = calculate_sample_weights(t)
+        Ψ = LinearAlgebra.Diagonal(calculate_sample_weights(t))
         H = H * Ψ
         T = reshape(t, 1, :) * Ψ
 
