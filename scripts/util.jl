@@ -1,40 +1,24 @@
 using Plots
 
-function build_histogram(predictions::T₁,
-                         targets::T₂) where {T₁ <: AbstractVector,
-                                             T₂ <: AbstractVector}
-    y = predictions
-    t = targets
-    indices = t .== 1
-    bins = -2:0.03:2
-    hist = histogram(y[indices], bins = bins, fill = (0, 0.5, :red), linecolor = false, legend = false)
-    hist = histogram!(y[.!indices], bins = bins, fill = (0, 0.5, :green), linecolor = false, legend = false)
-end
-
 function plot_decision_boundary(elm::T₁,
                                 samples::T₂,
                                 targets::T₃) where {T₁ <: ELM,
                                                     T₂ <: AbstractMatrix,
                                                     T₃ <: AbstractVector}
-    X = samples
-    t = targets
-    indices = t .== 1
-    rng = -15:0.5:15
-    plt = plot(X[1,indices], X[2,indices], seriestype = :scatter, color = :green, legend = false)
-    plt = plot!(X[1,.!indices], X[2,.!indices], seriestype = :scatter, color = :red, legend = false)
-    plt = contour!(rng, rng, (x, y) -> predict(elm, [x, y]), levels = [0], color = :black, legend = false)
-end
-
-function plot_decision_boundary(sieve::T₁,
-                                samples::T₂,
-                                targets::T₃) where {T₁ <: Sieve,
-                                                    T₂ <: AbstractMatrix,
-                                                    T₃ <: AbstractVector}
-    X = samples
-    t = targets
-    indices = t .== 1
-    rng = -15:0.5:15
-    plt = plot(X[1,indices], X[2,indices], seriestype = :scatter, color = :green, legend = false)
-    plt = plot!(X[1,.!indices], X[2,.!indices], seriestype = :scatter, color = :red, legend = false)
-    plt = contour!(rng, rng, (x, y) -> predict(sieve, [x, y]), levels = [0], color = :black, legend = false)
+    x, y = samples[1,:], samples[2,:]
+    colours = [label == 1 ? "#F8766D" : "#00BFC4" for label in targets]
+    rng = -10:0.1:10
+    plt = scatter(x, y,
+            markersize = 4,
+            markerstrokewidth = 0,
+            markercolor = colours,
+            xaxis = false,
+            yaxis = false,
+            grid = false,
+            legend = false)
+    plt = contour!(rng, rng, (x, y) -> predict(elm, [x, y]),
+            levels = [0],
+            linewidth = 1,
+            linecolor = :black,
+            legend = false)
 end

@@ -41,16 +41,16 @@ end
 
 for n_neurons in 1:2:5
     N = 200
-    degrees = 250.0
-    start = 200.0
+    radius₁ = 4
+    radius₂ = 11
     σ = 1.2
 
-    X₀, t₀ = synthetic_spiral_data(N, degrees, start, σ)
-    X₁, t₁ = synthetic_spiral_data(N, degrees, start, σ)
+    X₀, t₀ = synthetic_circular_data(N, radius₁, radius₂, σ)
+    X₁, t₁ = synthetic_circular_data(N, radius₁, radius₂, σ)
 
     (plt_sig, training_error_sig, testing_error_sig,
      plt_kde, training_error_kde, testing_error_kde) = perform_tests(X₀, t₀, X₁, t₁, n_neurons)
 
-    savefig(plt_sig, "figures/db_spiral_sig_$(n_neurons)_neurons.png")
-    savefig(plt_kde, "figures/db_spiral_kde_$(n_neurons)_neurons.png")
+    savefig(plt_sig, "figures/db_circular_sig_$(n_neurons)_neurons.png")
+    savefig(plt_kde, "figures/db_circular_kde_$(n_neurons)_neurons.png")
 end
