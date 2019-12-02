@@ -21,18 +21,23 @@ struct Tanh <: NaiveActivationFunction end
 (::Tanh)(x::T) where {T <: Number} = tanh(x)
 
 struct KDEComparator{T₁ <: KernelDensity.UnivariateKDE,
-                     T₂ <: KernelDensity.UnivariateKDE} <: TrainedActivationFunction
+                     T₂ <: KernelDensity.UnivariateKDE,
+                     T₃ <: AbstractArray} <: TrainedActivationFunction
     pdf₁::KernelDensity.InterpKDE{T₁}
     pdf₂::KernelDensity.InterpKDE{T₂}
+    training_activations::T₃
     minval::Float64
     maxval::Float64
 
+
     function KDEComparator(samples::T₁,
                            targets::T₂,
-                           weights::T₃;
+                           weights::T₃,
+                           importance::T₄;
                            boundary_offset::Int = 1) where {T₁ <: AbstractMatrix,
                                                             T₂ <: AbstractVector,
-                                                            T₃ <: AbstractVector}
+                                                            T₃ <: AbstractVector,
+                                                            T₄ <: AbstractVector}
         X = samples
         t = targets
         w = weights
@@ -46,17 +51,25 @@ struct KDEComparator{T₁ <: KernelDensity.UnivariateKDE,
         h₀ = h[t .!= 1]
         h₁ = h[t .== 1]
 
+        importance₀ = importance[t .!= 1]
+        importance₁ = importance[t .== 1]
+
         boundary = (min(minimum(h₀), minimum(h₁)) - boundary_offset,
                     max(maximum(h₀), maximum(h₁)) + boundary_offset)
 
-        kde₀ = KernelDensity.kde_lscv(h₀, npoints = 1000, boundary = boundary)
-        kde₁ = KernelDensity.kde_lscv(h₁, npoints = 1000, boundary = boundary)
+        # weights=Weights(ones(X)/length(X))
+        kde₀ = KernelDensity.kde_lscv(h₀, npoints = 1000, boundary = boundary, weights = importance₀ / sum(importance₀))
+        kde₁ = KernelDensity.kde_lscv(h₁, npoints = 1000, boundary = boundary, weights = importance₁ / sum(importance₁))
+        # kde₀ = KernelDensity.kde_lscv(h₀, npoints = 1000, boundary = boundary)
+        # kde₁ = KernelDensity.kde_lscv(h₁, npoints = 1000, boundary = boundary)
 
         pdf₀ = KernelDensity.InterpKDE(kde₀)
         pdf₁ = KernelDensity.InterpKDE(kde₁)
 
+        training_activations = [Distributions.pdf(pdf₀, h[n]) - Distributions.pdf(pdf₁, h[n]) for n = 1:length(h)]
+
         param(::KernelDensity.InterpKDE{T}) where {T} = T
-        new{param(pdf₀),param(pdf₁)}(pdf₀, pdf₁, minval, maxval)
+        new{param(pdf₀),param(pdf₁), Vector{<: eltype(training_activations)}}(pdf₀, pdf₁, training_activations, minval, maxval)
     end
 end
 
@@ -77,7 +90,13 @@ function train_kde_comparators(::Type{T₁},
     L = n_neurons
     D = first(size(X))
     W = gaussian_projection_matrix(T₁, L, D)
-    fs = [KDEComparator(X, t, W[l,:], boundary_offset = boundary_offset) for l in 1:L]
+    importance = ones(length(t))
+    fs = [KDEComparator(X, t, W[1,:], importance, boundary_offset = boundary_offset)]
+    #for l = 2:L
+    #    estimator = fs[l-1]
+    #    map(estimator)
+    #end
+    fs = [KDEComparator(X, t, W[l,:], importance, boundary_offset = boundary_offset) for l in 1:L]
     W, fs
 end
 

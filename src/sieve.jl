@@ -63,18 +63,18 @@ struct DataPassingSieve{T <: Number} <: Sieve
             W, fs = train_kde_comparators(T₁, X₀, t₀, L, boundary_offset = boundary_offset)
             H₀ .= project(X₀, W, fs)
 
-            display(H₀)
-            h₀ = H₀[:, t₀ .!= 1]
-            h₁ = H₀[:, t₀ .== 1]
-            fig = Plots.plot(h₀[1,:], h₀[2,:], seriestype = :scatter, color = :green, legend = false)
-            Plots.plot!(h₁[1,:], h₁[2,:], seriestype = :scatter, color = :red, legend = false)
-            display(fig)
+            # display(H₀)
+            # h₀ = H₀[:, t₀ .!= 1]
+            # h₁ = H₀[:, t₀ .== 1]
+            # fig = Plots.plot(h₀[1,:], h₀[2,:], seriestype = :scatter, color = :green, legend = false)
+            # Plots.plot!(h₁[1,:], h₁[2,:], seriestype = :scatter, color = :red, legend = false)
+            # display(fig)
 
             push!(layers, SieveLayer(W, fs))
 
             to_remove = Set{Int}()
             for n in active_samples
-                if consensus(H[i₀:i₁,n], t₀[n], consensus_threshold)
+                if consensus(H[i₀:i₁,n], t[n], consensus_threshold)
                     push!(to_remove, n)
                 end
             end

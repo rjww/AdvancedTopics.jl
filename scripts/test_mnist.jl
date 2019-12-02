@@ -16,7 +16,7 @@ function perform_tests(training_samples::T₁,
     X₁ = testing_samples
     t₁ = testing_targets
     L = n_neurons
-    max_layers = 10
+    max_layers = 35
 
     W, fs = train_kde_comparators(Float64, X₀, t₀, max_layers * L, boundary_offset = 1)
 
@@ -72,7 +72,7 @@ end
 
 X₀, t₀ = mnist_training_data()
 X₁, t₁ = mnist_testing_data()
-n_neurons = 5
+n_neurons = 50
 
 # (hist_sig, error_sig,
 #  hist_kde, error_kde,
@@ -101,3 +101,10 @@ display("Testing Error")
 @show error_sig₁
 @show error_kde₁
 @show error_sieve_d₁
+
+# import MLDatasets
+# X, T = MLDatasets.MNIST.traindata()
+# T
+#
+# X₀, t₀ = mnist_training_data()
+# X₁, t₁ = mnist_testing_data()

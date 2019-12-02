@@ -1,4 +1,4 @@
-const filtering_labels = [0, 1]
+const filtering_labels = [7, 1]
 
 function mnist_training_data()
     X, T = MLDatasets.MNIST.traindata()
@@ -37,7 +37,8 @@ function reshape_samples(samples::T) where {T <: AbstractArray}
 end
 
 function reshape_targets(targets::T) where {T <: AbstractVector}
-    [x == 0 ? -1 : 1 for x ∈ targets]
+    l = first(filtering_labels)
+    [x == l ? -1 : 1 for x ∈ targets]
 end
 
 function random_sample(n_samples::Int,
